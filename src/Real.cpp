@@ -13,34 +13,26 @@
 
 namespace Oasis {
 
-Real::Real(double value)
-    : value(value)
+template <typename T, typename>
+auto Real<T>::Differentiate(const Expression&) const -> std::unique_ptr<Expression>
 {
+    return std::make_unique<Real<T>>(0);
 }
 
-auto Real::Differentiate(const Expression&) const -> std::unique_ptr<Expression>
+template <typename T, typename>
+auto Real<T>::Equals(const Expression& other) const -> bool
 {
-    return std::make_unique<Real>(0);
+    return other.Is<Real<T>>() && value == dynamic_cast<const Real<T>&>(other).value;
 }
 
-auto Real::Equals(const Expression& other) const -> bool
-{
-    return other.Is<Real>() && value == dynamic_cast<const Real&>(other).value;
-}
-
-auto Real::GetValue() const -> double
-{
-    return value;
-}
-
-auto Real::Integrate(const Expression& integrationVariable) const -> std::unique_ptr<Expression>
+template <typename T, typename>
+auto Real<T>::Integrate(const Expression& integrationVariable) const -> std::unique_ptr<Expression>
 {
     if (auto variable = RecursiveCast<Variable>(integrationVariable); variable != nullptr) {
         // Constant rule
         if (value != 0) {
-
             Add adder {
-                Multiply<Real, Variable> { Real { value }, Variable { (*variable).GetName() } },
+                Multiply<Real<T>, Variable> { Real<T> { value }, Variable { (*variable).GetName() } },
                 Variable { "C" }
             };
             return adder.Simplify();
@@ -54,5 +46,10 @@ auto Real::Integrate(const Expression& integrationVariable) const -> std::unique
 
     return integral.Copy();
 }
+
+// Explicit template instantiations
+template class Real<float>;
+template class Real<double>;
+template class Real<int>;
 
 } // namespace Oasis
