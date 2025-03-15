@@ -1,7 +1,3 @@
-//
-// Created by Matthew McCall on 8/10/23.
-//
-
 #ifndef OASIS_SUBTRACT_HPP
 #define OASIS_SUBTRACT_HPP
 
@@ -20,7 +16,13 @@ public:
     Subtract() = default;
     Subtract(const Subtract<Expression, Expression>& other) = default;
 
-    Subtract(const Expression& minuend, const Expression& subtrahend);
+    Subtract(const Expression& minuend, const Expression& subtrahend)
+        : BinaryExpression<Subtract>(minuend, subtrahend)
+    {
+        // Set the parent pointers
+        this->mostSigOp->SetParent(this); // Set parent for minuend
+        this->leastSigOp->SetParent(this); // Set parent for subtrahend
+    }
 
     [[nodiscard]] auto Simplify() const -> std::unique_ptr<Expression> final;
 
@@ -33,12 +35,7 @@ public:
 };
 /// @endcond
 
-/**
- * The Subtract expression subtracts two expressions.
- *
- * @tparam MinuendT The expression to be subtracted from.
- * @tparam SubtrahendT The expression to subtract from the minuend.
- */
+// The Subtract expression subtracts two expressions.
 template <IExpression MinuendT = Expression, IExpression SubtrahendT = MinuendT>
 class Subtract : public BinaryExpression<Subtract, MinuendT, SubtrahendT> {
 public:
@@ -48,9 +45,12 @@ public:
     {
     }
 
-    Subtract(const MinuendT& addend1, const SubtrahendT& addend2)
-        : BinaryExpression<Subtract, MinuendT, SubtrahendT>(addend1, addend2)
+    Subtract(const MinuendT& minuend, const SubtrahendT& subtrahend)
+        : BinaryExpression<Subtract, MinuendT, SubtrahendT>(minuend, subtrahend)
     {
+        // Set the parent pointers
+        this->mostSigOp->SetParent(this); // Set parent for minuend
+        this->leastSigOp->SetParent(this); // Set parent for subtrahend
     }
 
     auto operator=(const Subtract& other) -> Subtract& = default;

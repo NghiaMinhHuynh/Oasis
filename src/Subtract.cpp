@@ -25,7 +25,8 @@ auto Subtract<Expression>::Simplify() const -> std::unique_ptr<Expression>
     const auto simplifiedSubtrahend = leastSigOp ? leastSigOp->Simplify() : nullptr;
 
     const Subtract simplifiedSubtract { *simplifiedMinuend, *simplifiedSubtrahend };
-
+    // Set the parent for the simplified expressions
+    simplifiedSubtract.SetParent(this); // Set parent pointer for this subtraction operation
     // 2 - 1 = 1
     if (auto realCase = RecursiveCast<Subtract<Real>>(simplifiedSubtract); realCase != nullptr) {
         const Real& minuend = realCase->GetMostSigOp();
@@ -168,6 +169,12 @@ auto Subtract<Expression>::Integrate(const Expression& integrationVariable) cons
     Integral<Expression, Expression> integral { *(this->Copy()), *(integrationVariable.Copy()) };
 
     return integral.Copy();
+}
+
+// Add a function to set the parent pointer for expressions
+void Subtract<Expression>::SetParent(Expression* parent)
+{
+    this->parent = parent;
 }
 
 } // Oasis
