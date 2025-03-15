@@ -1,7 +1,3 @@
-//
-// Created by Andrew Nazareth on 9/19/23.
-//
-
 #ifndef OASIS_EXPONENT_HPP
 #define OASIS_EXPONENT_HPP
 
@@ -28,6 +24,12 @@ public:
 
     [[nodiscard]] auto Integrate(const Expression& integrationVariable) const -> std::unique_ptr<Expression> final;
 
+    void SetParent(Expression* parent) override {
+        this->parent = parent;
+        mostSigOp->SetParent(this);
+        leastSigOp->SetParent(this);
+    }
+
     EXPRESSION_TYPE(Exponent)
     EXPRESSION_CATEGORY(BinExp)
 };
@@ -51,13 +53,22 @@ public:
     Exponent(const BaseT& base, const PowerT& power)
         : BinaryExpression<Exponent, BaseT, PowerT>(base, power)
     {
+        this->mostSigOp->SetParent(this);
+        this->leastSigOp->SetParent(this);
     }
 
     auto operator=(const Exponent& other) -> Exponent& = default;
+
+    void SetParent(Expression* parent) override {
+        this->parent = parent;
+        mostSigOp->SetParent(this);
+        leastSigOp->SetParent(this);
+    }
 
     EXPRESSION_TYPE(Exponent)
     EXPRESSION_CATEGORY(BinExp)
 };
 
-}
+} // namespace Oasis
+
 #endif // OASIS_EXPONENT_HPP

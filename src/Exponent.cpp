@@ -22,6 +22,8 @@ namespace Oasis {
 Exponent<Expression>::Exponent(const Expression& base, const Expression& power)
     : BinaryExpression(base, power)
 {
+    this->mostSigOp->SetParent(this);
+    this->leastSigOp->SetParent(this);
 }
 
 auto Exponent<Expression>::Simplify() const -> std::unique_ptr<Expression>
@@ -115,6 +117,8 @@ auto Exponent<Expression>::Simplify() const -> std::unique_ptr<Expression>
     const auto simplifiedPower = leastSigOp->Simplify();
 
     const Exponent simplifiedExponent { *simplifiedBase, *simplifiedPower };
+    simplifiedExponent->mostSigOp->SetParent(simplifiedExponent.get());
+    simplifiedExponent->leastSigOp->SetParent(simplifiedExponent.get());
     auto matchResult = match_cast.Execute(simplifiedExponent, nullptr).value();
     return matchResult ? std::move(matchResult) : std::move(simplifiedExponent.Copy());
 }
@@ -146,7 +150,7 @@ auto Exponent<Expression>::Integrate(const Expression& integrationVariable) cons
     }
 
     Integral<Expression, Expression> integral { *(this->Copy()), *(integrationVariable.Copy()) };
-
+    integral.SetParent(this->parent);
     return integral.Copy();
 }
 
@@ -196,7 +200,9 @@ auto Exponent<Expression>::Differentiate(const Expression& differentiationVariab
         }
     }
 
-    return Derivative { *this, differentiationVariable }.Copy();
+    Derivative derivative { *this, differentiationVariable };
+    derivative.SetParent(this->parent);
+    return derivative.Copy();
 }
 
 } // Oasis
