@@ -20,6 +20,8 @@ namespace Oasis {
 Divide<Expression>::Divide(const Expression& dividend, const Expression& divisor)
     : BinaryExpression(dividend, divisor)
 {
+    // Set the parent pointer for the divide operation
+    this->parent = this;
 }
 
 auto Divide<Expression>::Simplify() const -> std::unique_ptr<Expression>
@@ -27,6 +29,9 @@ auto Divide<Expression>::Simplify() const -> std::unique_ptr<Expression>
     auto simplifiedDividend = mostSigOp->Simplify(); // numerator
     auto simplifiedDivider = leastSigOp->Simplify(); // denominator
     Divide simplifiedDivide { *simplifiedDividend, *simplifiedDivider };
+
+    // Update the parent pointer after simplifying
+    simplifiedDivide.parent = this->parent;
 
     if (auto realCase = RecursiveCast<Divide<Real>>(simplifiedDivide); realCase != nullptr) {
         const Real& dividend = realCase->GetMostSigOp();
@@ -237,6 +242,8 @@ auto Divide<Expression>::Integrate(const Expression& integrationVariable) const 
 
     Integral<Expression, Expression> integral { *(this->Copy()), *(integrationVariable.Copy()) };
 
+    // Ensure the parent pointer is updated for the integral expression
+    integral.parent = this->parent;
     return integral.Copy();
 }
 

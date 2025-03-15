@@ -29,6 +29,9 @@ public:
 
     EXPRESSION_TYPE(Divide)
     EXPRESSION_CATEGORY(BinExp)
+
+    // Parent pointer to maintain tree relationships
+    mutable Divide<Expression, Expression>* parent = nullptr;
 };
 /// @endcond
 
@@ -56,6 +59,9 @@ public:
 
     EXPRESSION_TYPE(Divide)
     EXPRESSION_CATEGORY(BinExp)
+
+    // Parent pointer to maintain tree relationships
+    mutable Divide<DividendT, DivisorT>* parent = nullptr;
 };
 
 } // Oasis
