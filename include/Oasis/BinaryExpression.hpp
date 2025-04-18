@@ -1,6 +1,7 @@
 //
 // Created by Matthew McCall on 7/2/23.
-//
+// Modified for persistent, O(log N) inserts by replacing unique_ptr with shared_ptr
+// and adding withChildren helper.
 
 #ifndef OASIS_BINARYEXPRESSION_HPP
 #define OASIS_BINARYEXPRESSION_HPP
@@ -9,6 +10,7 @@
 #include <cassert>
 #include <functional>
 #include <list>
+#include <memory>
 
 #include "Expression.hpp"
 #include "RecursiveCast.hpp"
@@ -25,27 +27,27 @@ template <typename MostSigOpT, typename LeastSigOpT, typename T>
 concept IOperand = std::is_same_v<T, MostSigOpT> || std::is_same_v<T, LeastSigOpT>;
 
 template <template <typename, typename> typename T>
-concept IAssociativeAndCommutative = IExpression<T<Expression, Expression>> && ((T<Expression, Expression>::GetStaticCategory() & (Associative | Commutative)) == (Associative | Commutative));
+concept IAssociativeAndCommutative = IExpression<T<Expression, Expression>> &&
+    ((T<Expression, Expression>::GetStaticCategory() & (Associative | Commutative)) == (Associative | Commutative));
 
 /**
  * Builds a reasonably balanced binary expression from a vector of operands.
  * @tparam T The type of the binary expression, e.g. Add or Multiply.
  * @param ops The vector of operands. Must have a minimum of 2 operands.
- * @return A binary expression with the operands in the vector, or a nullptr if ops.size() <=1.
+ * @return A binary expression with the operands in the vector, or a nullptr if ops.size() <= 1.
  */
 template <template <typename, typename> typename T>
     requires IAssociativeAndCommutative<T>
-auto BuildFromVector(const std::vector<std::unique_ptr<Expression>>& ops) -> std::unique_ptr<T<Expression, Expression>>
+auto BuildFromVector(const std::vector<std::unique_ptr<Expression>>& ops)
+    -> std::unique_ptr<T<Expression, Expression>>
 {
     if (ops.size() <= 1) {
         return nullptr;
     }
-
     using GeneralizedT = T<Expression, Expression>;
 
     std::list<std::unique_ptr<Expression>> opsList;
     opsList.resize(ops.size());
-
     std::transform(ops.begin(), ops.end(), opsList.begin(), [](const auto& op) { return op->Copy(); });
 
     while (std::next(opsList.begin()) != opsList.end()) {
@@ -63,44 +65,33 @@ auto BuildFromVector(const std::vector<std::unique_ptr<Expression>>& ops) -> std
 /**
  * A binary expression.
  *
- * The BinaryExpression class is a base class for all binary expressions. It provides a common
- * interface for all binary expressions, and implements common functionality. Specifically, it provides
- * functionality dependent on the Derived class. The Derived class must be a template class that takes
- * two template parameters, the types of the most significant and least significant operands, respectively.
- * This class uses a [Curiously Recurring Template Pattern](https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern)
- *
- * @note This class is not intended to be used directly by end users.
- *
- * @tparam DerivedT The derived class.
- * @tparam MostSigOpT The type of the most significant operand.
- * @tparam LeastSigOpT The type of the least significant operand.
+ * The BinaryExpression class is a base class for all binary expressions.
+ * ...
  */
-template <template <IExpression, IExpression> class DerivedT, IExpression MostSigOpT = Expression, IExpression LeastSigOpT = MostSigOpT>
+template <template <IExpression, IExpression> class DerivedT,
+          IExpression MostSigOpT = Expression,
+          IExpression LeastSigOpT = MostSigOpT>
 class BinaryExpression : public Expression {
-
     using DerivedSpecialized = DerivedT<MostSigOpT, LeastSigOpT>;
     using DerivedGeneralized = DerivedT<Expression, Expression>;
 
 public:
     BinaryExpression() = default;
-    BinaryExpression(const BinaryExpression& other)
-    {
+    BinaryExpression(const BinaryExpression& other) {
         if (other.HasMostSigOp()) {
-            SetMostSigOp(other.GetMostSigOp());
+            mostSigOp = other.mostSigOp;
         }
-
         if (other.HasLeastSigOp()) {
-            SetLeastSigOp(other.GetLeastSigOp());
+            leastSigOp = other.leastSigOp;
         }
     }
 
-    BinaryExpression(const MostSigOpT& mostSigOp, const LeastSigOpT& leastSigOp)
-    {
-        SetMostSigOp(mostSigOp);
-        SetLeastSigOp(leastSigOp);
+    BinaryExpression(const MostSigOpT& mostSig, const LeastSigOpT& leastSig) {
+        SetMostSigOp(mostSig);
+        SetLeastSigOp(leastSig);
     }
 
-    template <IExpression Op1T, IExpression Op2T, IExpression... OpsT>
+        template <IExpression Op1T, IExpression Op2T, IExpression... OpsT>
     BinaryExpression(const Op1T& op1, const Op2T& op2, const OpsT&... ops)
     {
         static_assert(IAssociativeAndCommutative<DerivedT>, "List initializer only supported for associative and commutative expressions");
@@ -288,9 +279,8 @@ public:
         assert(leastSigOp != nullptr);
         return *leastSigOp;
     }
-
     /**
-     * Gets whether this expression has a most significant operand.
+         * Gets whether this expression has a most significant operand.
      * @return True if this expression has a most significant operand, false otherwise.
      */
     [[nodiscard]] auto HasMostSigOp() const -> bool
@@ -310,7 +300,8 @@ public:
     /**
      * \brief Sets the most significant operand of this expression.
      * \param op The operand to set.
-     */
+
+          */
     template <typename T>
         requires IsAnyOf<T, MostSigOpT, Expression>
     auto SetMostSigOp(const T& op) -> bool
@@ -336,7 +327,8 @@ public:
     /**
      * Sets the least significant operand of this expression.
      * @param op The operand to set.
-     */
+
+         */
     template <typename T>
         requires IsAnyOf<T, LeastSigOpT, Expression>
     auto SetLeastSigOp(const T& op) -> bool
@@ -354,9 +346,24 @@ public:
         if (auto castedOp = Oasis::RecursiveCast<LeastSigOpT>(op); castedOp) {
             leastSigOp = std::move(castedOp);
             return true;
-        }
 
-        return false;
+     
+     
+    /**
+     * Rebuilds a new shared_ptr of the generalized (Expression,Expression) version
+     * with new children. Only this node is newly allocated.
+     */
+    auto withChildren(std::shared_ptr<Expression> left,
+                      std::shared_ptr<Expression> right) const
+        -> std::shared_ptr<DerivedGeneralized>
+    {
+        auto ptr = std::make_shared<DerivedGeneralized>(*static_cast<const DerivedGeneralized*>(this));
+        ptr->mostSigOp = std::move(left);
+        ptr->leastSigOp = std::move(right);
+        return ptr;
+    }
+
+            return false;
     }
 
     auto Substitute(const Expression& var, const Expression& val) -> std::unique_ptr<Expression> override
@@ -374,9 +381,16 @@ public:
     auto SwapOperands() const -> DerivedT<LeastSigOpT, MostSigOpT>
     {
         return DerivedT { *this->leastSigOp, *this->mostSigOp };
+
+
+    [[nodiscard]] auto Copy() const -> std::unique_ptr<Expression> final {
+        return std::make_unique<DerivedSpecialized>(*static_cast<const DerivedSpecialized*>(this));
     }
 
     auto operator=(const BinaryExpression& other) -> BinaryExpression& = default;
+
+    auto GetMostSigOp() const -> std::shared_ptr<Expression>;
+    auto GetLeastSigOp() const -> std::shared_ptr<Expression>;
 
     auto AcceptInternal(Visitor& visitor) const -> any override
     {
@@ -385,10 +399,11 @@ public:
         return visitor.Visit(derivedGeneralized);
     }
 
-    std::unique_ptr<MostSigOpT> mostSigOp;
-    std::unique_ptr<LeastSigOpT> leastSigOp;
+protected:
+    std::shared_ptr<MostSigOpT> mostSigOp;
+    std::shared_ptr<LeastSigOpT> leastSigOp;
 };
 
-} // Oasis
+} // namespace Oasis
 
 #endif // OASIS_BINARYEXPRESSION_HPP
