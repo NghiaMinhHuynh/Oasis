@@ -68,6 +68,18 @@ auto Variable::Substitute(const Expression& var, const Expression& val) -> std::
     return Copy();
 }
 
+auto Variable::Substitute(const Expression& var,
+                          const Expression& val)
+     -> std::unique_ptr<Expression>
+{
+  auto v = RecursiveCast<Variable>(var);
+  if (!v)    throw std::invalid_argument("not a variable");
+  if (v->GetName() == GetName()) 
+    return val.Copy();
+  return Copy();
+}
+
+
 auto Variable::Differentiate(const Expression& differentiationVariable) const -> std::unique_ptr<Expression>
 {
     if (auto variable = RecursiveCast<Variable>(differentiationVariable); variable != nullptr) {
